@@ -1,0 +1,20 @@
+{
+  "name": "wellspring",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "build": "npm run build --workspace apps/web",
+    "build:web": "npm run build --workspace apps/web",
+    "test": "echo \"Tests are not configured yet\"",
+    "db:migrate": "echo \"Database migrations are not configured yet\"",
+    "db:seed": "echo \"Database seed is not configured yet\"",
+    "lint": "npm run lint --workspace apps/web"
+  }
+}

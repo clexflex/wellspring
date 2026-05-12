@@ -1,0 +1,19 @@
+node_modules
+.next
+out
+dist
+build
+coverage
+
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+.vercel
+supabase/.branches
+supabase/.temp
+
+# Agent local state
+.aider-desk
+.augment

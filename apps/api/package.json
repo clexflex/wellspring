@@ -1,0 +1,10 @@
+{
+  "name": "@wellspring/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"API is not implemented yet\"",
+    "build": "echo \"API build is not configured yet\"",
+    "test": "echo \"API tests are not configured yet\""
+  }
+}
