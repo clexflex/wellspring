@@ -2,12 +2,13 @@
 
 Wellspring is a multi-tenant content management platform for wellness creators.
 
-Phases 1 and 2 establish the backend foundation and custom creator authentication:
+Phases 1 through 3 establish the backend foundation, custom creator authentication, and audit log infrastructure:
 - Express + TypeScript API in `apps/api`
 - PostgreSQL schema managed through Supabase SQL migrations
 - split admin/runtime database roles
 - RLS-based tenant isolation with transaction-local tenant context
 - custom JWT auth for creators
+- tenant-scoped audit logging and retrieval
 - deterministic seed data
 
 ## Tech Stack
@@ -54,6 +55,7 @@ Phases 1 and 2 establish the backend foundation and custom creator authenticatio
 - `POST /api/auth/password-reset/request` always returns success and, in non-production, includes a debug reset token and URL.
 - `POST /api/auth/password-reset/confirm` consumes a reset token and updates the password.
 - `GET /api/auth/me` returns the authenticated creator profile from a Bearer token.
+- `GET /api/audit-logs` returns tenant-scoped audit logs with optional `from`, `to`, `action`, `limit`, and `cursor` query params.
 
 ## Auth Notes
 
@@ -63,6 +65,24 @@ Phases 1 and 2 establish the backend foundation and custom creator authenticatio
 - Tenant-owned content tables remain protected by RLS and `withTenantContext(...)`.
 - Password reset confirmation uses a private database function to consume the token and update the password atomically.
 - Existing JWTs are not revoked when a password changes in this phase.
+- Signup and password-reset write flows now record audit entries through the runtime role inside tenant-aware transactions.
+
+## Audit Log Notes
+
+- `GET /api/audit-logs` requires `Authorization: Bearer <token>`.
+- Audit logs are ordered by `created_at desc, id desc`.
+- Supported filters:
+  - `from`
+  - `to`
+  - `action`
+- Pagination uses opaque cursors:
+  - `limit` defaults to `25`
+  - `limit` max is `100`
+  - response shape is `{ items, pageInfo }`
+- Current auth-triggered actions:
+  - `CREATOR_SIGNED_UP`
+  - `PASSWORD_RESET_REQUESTED`
+  - `PASSWORD_RESET_CONFIRMED`
 
 ## Seeded Dev Credentials
 
@@ -75,4 +95,4 @@ After `npm run db:seed`:
 - Supabase is used as hosted PostgreSQL only.
 - Supabase Storage is not used for application features.
 - The frontend must not query application tables directly.
-- Program CRUD, session CRUD, CSV import, uploads, audit-log writes, and frontend auth screens are deferred to later phases.
+- Program CRUD, session CRUD, CSV import, uploads, and frontend auth screens are deferred to later phases.

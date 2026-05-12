@@ -1,6 +1,8 @@
-import type { QueryResultRow } from 'pg'
+import type { Pool, PoolClient, QueryResultRow } from 'pg'
 
 import { getRuntimePool } from '../db/pool'
+
+type Queryable = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>
 
 export type CreatorRecord = QueryResultRow & {
   id: string
@@ -12,8 +14,15 @@ export type CreatorRecord = QueryResultRow & {
   updated_at: Date
 }
 
-export async function findCreatorByEmail(email: string): Promise<CreatorRecord | null> {
-  const result = await getRuntimePool().query<CreatorRecord>(
+function getQueryable(queryable?: Queryable): Queryable {
+  return queryable ?? getRuntimePool()
+}
+
+export async function findCreatorByEmail(
+  email: string,
+  queryable?: Queryable
+): Promise<CreatorRecord | null> {
+  const result = await getQueryable(queryable).query<CreatorRecord>(
     `
       select id, email, password_hash, display_name, slug, created_at, updated_at
       from public.creators
@@ -26,8 +35,8 @@ export async function findCreatorByEmail(email: string): Promise<CreatorRecord |
   return result.rows[0] ?? null
 }
 
-export async function findCreatorById(id: string): Promise<CreatorRecord | null> {
-  const result = await getRuntimePool().query<CreatorRecord>(
+export async function findCreatorById(id: string, queryable?: Queryable): Promise<CreatorRecord | null> {
+  const result = await getQueryable(queryable).query<CreatorRecord>(
     `
       select id, email, password_hash, display_name, slug, created_at, updated_at
       from public.creators
@@ -45,8 +54,8 @@ export async function createCreator(input: {
   passwordHash: string
   displayName: string
   slug: string
-}): Promise<CreatorRecord> {
-  const result = await getRuntimePool().query<CreatorRecord>(
+}, queryable?: Queryable): Promise<CreatorRecord> {
+  const result = await getQueryable(queryable).query<CreatorRecord>(
     `
       insert into public.creators (email, password_hash, display_name, slug)
       values ($1, $2, $3, $4)

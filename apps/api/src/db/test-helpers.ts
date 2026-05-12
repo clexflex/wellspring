@@ -6,7 +6,7 @@ export async function resetDatabase(): Promise<void> {
   const adminPool = getAdminPool()
 
   await adminPool.query(
-    'truncate table public.password_reset_tokens, public.sessions, public.programs, public.creators restart identity cascade'
+    'truncate table public.audit_logs, public.password_reset_tokens, public.sessions, public.programs, public.creators restart identity cascade'
   )
 }
 
@@ -93,6 +93,69 @@ export async function findPasswordResetTokenByCreator(creatorId: string) {
   )
 
   return result.rows[0] ?? null
+}
+
+export async function findLatestAuditLogByCreator(creatorId: string) {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    actor_creator_id: string
+    action: string
+    target_type: string
+    target_id: string
+    metadata: Record<string, unknown>
+    created_at: Date
+  }>(
+    `
+      select id, creator_id, actor_creator_id, action, target_type, target_id, metadata, created_at
+      from public.audit_logs
+      where creator_id = $1
+      order by created_at desc, id desc
+      limit 1
+    `,
+    [creatorId]
+  )
+
+  return result.rows[0] ?? null
+}
+
+export async function createAuditLog(input: {
+  creatorId: string
+  actorCreatorId?: string
+  action: string
+  targetType: string
+  targetId?: string
+  metadata?: Record<string, unknown>
+  createdAt?: Date | string
+}): Promise<{ id: string }> {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{ id: string }>(
+    `
+      insert into public.audit_logs (
+        creator_id,
+        actor_creator_id,
+        action,
+        target_type,
+        target_id,
+        metadata,
+        created_at
+      )
+      values ($1, $2, $3, $4, coalesce($5::uuid, gen_random_uuid()), $6::jsonb, coalesce($7::timestamptz, now()))
+      returning id
+    `,
+    [
+      input.creatorId,
+      input.actorCreatorId ?? input.creatorId,
+      input.action,
+      input.targetType,
+      input.targetId ?? null,
+      JSON.stringify(input.metadata ?? {}),
+      input.createdAt ? new Date(input.createdAt) : null,
+    ]
+  )
+
+  return result.rows[0]
 }
 
 export async function createExpiredPasswordResetToken(creatorId: string): Promise<string> {

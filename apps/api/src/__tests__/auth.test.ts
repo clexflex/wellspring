@@ -1,13 +1,16 @@
+import jwt from 'jsonwebtoken'
 import request from 'supertest'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 
 import { createApp } from '../app'
+import { getEnv } from '../config/env'
 import { closeAdminPool } from '../db/admin'
 import { closeRuntimePool } from '../db/pool'
 import {
   cleanupAuthFixtures,
   createExpiredPasswordResetToken,
   createUsedPasswordResetToken,
+  findLatestAuditLogByCreator,
   findPasswordResetTokenByCreator,
   resetDatabase,
   seedCreatorWithPassword,
@@ -42,6 +45,9 @@ describe('auth endpoints', () => {
     expect(response.body.creator.email).toBe(creatorEmail)
     expect(response.body.creator).not.toHaveProperty('password_hash')
     expect(response.body.token).toEqual(expect.any(String))
+
+    const auditLog = await findLatestAuditLogByCreator(response.body.creator.id)
+    expect(auditLog?.action).toBe('CREATOR_SIGNED_UP')
   })
 
   test('rejects duplicate signup email', async () => {
@@ -140,6 +146,43 @@ describe('auth endpoints', () => {
 
     expect(response.status).toBe(401)
     expect(response.body.error.code).toBe('UNAUTHORIZED')
+    expect(response.body.error.message).toBe('Authentication required')
+  })
+
+  test('rejects /api/auth/me with a malformed authorization header', async () => {
+    const response = await request(app).get('/api/auth/me').set('authorization', 'Basic abc123')
+
+    expect(response.status).toBe(401)
+    expect(response.body.error.code).toBe('UNAUTHORIZED')
+    expect(response.body.error.message).toBe('Authentication required')
+  })
+
+  test('rejects /api/auth/me with an invalid bearer token', async () => {
+    const response = await request(app).get('/api/auth/me').set('authorization', 'Bearer undefined')
+
+    expect(response.status).toBe(401)
+    expect(response.body.error.code).toBe('UNAUTHORIZED')
+    expect(response.body.error.message).toBe('Authentication required')
+  })
+
+  test('rejects /api/auth/me with an expired bearer token', async () => {
+    const expiredToken = jwt.sign(
+      {
+        sub: '11111111-1111-1111-1111-111111111111',
+        email: creatorEmail,
+        type: 'creator',
+      },
+      getEnv().JWT_SECRET,
+      { expiresIn: '-1s' }
+    )
+
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('authorization', `Bearer ${expiredToken}`)
+
+    expect(response.status).toBe(401)
+    expect(response.body.error.code).toBe('UNAUTHORIZED')
+    expect(response.body.error.message).toBe('Authentication required')
   })
 
   test('creates password reset token in development/test mode', async () => {
@@ -160,11 +203,13 @@ describe('auth endpoints', () => {
     expect(response.body.debug.resetUrl).toEqual(expect.any(String))
 
     const tokenRow = await findPasswordResetTokenByCreator(creator.id)
+    const auditLog = await findLatestAuditLogByCreator(creator.id)
     expect(tokenRow?.token_hash).toBeTruthy()
+    expect(auditLog?.action).toBe('PASSWORD_RESET_REQUESTED')
   })
 
   test('confirms password reset and allows login with new password', async () => {
-    await seedCreatorWithPassword({
+    const creator = await seedCreatorWithPassword({
       email: creatorEmail,
       password: creatorPassword,
       displayName: creatorDisplayName,
@@ -190,8 +235,11 @@ describe('auth endpoints', () => {
       password: 'NewStrongPass123!',
     })
 
+    const auditLog = await findLatestAuditLogByCreator(creator.id)
+
     expect(loginResponse.status).toBe(200)
     expect(loginResponse.body.token).toEqual(expect.any(String))
+    expect(auditLog?.action).toBe('PASSWORD_RESET_CONFIRMED')
   })
 
   test('rejects expired password reset token', async () => {

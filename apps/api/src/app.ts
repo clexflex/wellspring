@@ -2,6 +2,7 @@ import express from 'express'
 
 import { errorHandler, notFoundHandler } from './http/middleware/error-handler'
 import { createAuthRouter } from './http/routes/auth'
+import { createAuditLogsRouter } from './http/routes/audit-logs'
 import { createHealthRouter } from './http/routes/health'
 import { httpLogger } from './lib/logger'
 
@@ -13,6 +14,7 @@ export function createApp() {
 
   app.use('/health', createHealthRouter())
   app.use('/api/auth', createAuthRouter())
+  app.use('/api/audit-logs', createAuditLogsRouter())
 
   app.use(notFoundHandler)
   app.use(errorHandler)

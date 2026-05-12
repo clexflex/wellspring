@@ -1,11 +1,16 @@
-import type { QueryResultRow } from 'pg'
-
+import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from '../audit/actions'
+import { recordAuditLog } from '../audit/record'
 import { getEnv } from '../config/env'
+import { getRuntimePool } from '../db/pool'
+import { setTenantContext, withTenantContext } from '../db/tenant-context'
 import { AppError } from '../http/errors'
 import { createCreator, findCreatorByEmail, findCreatorById, type CreatorRecord } from './creator-repository'
 import { generateRawResetToken, hashResetToken } from './hash'
 import { signCreatorToken } from './jwt'
-import { createPasswordResetToken, consumePasswordResetToken } from './password-reset-repository'
+import {
+  consumePasswordResetTokenWithClient,
+  insertPasswordResetToken,
+} from './password-reset-repository'
 import { hashPassword, verifyPassword } from './passwords'
 import { presentCreator } from './presenters'
 
@@ -52,14 +57,42 @@ export async function signupCreator(input: {
   const passwordHash = await hashPassword(input.password)
 
   try {
-    const creator = await createCreator({
-      email,
-      passwordHash,
-      displayName: input.displayName.trim(),
-      slug: input.slug.trim(),
-    })
+    const client = await getRuntimePool().connect()
 
-    return buildAuthResponse(creator)
+    try {
+      await client.query('begin')
+
+      const creator = await createCreator(
+        {
+          email,
+          passwordHash,
+          displayName: input.displayName.trim(),
+          slug: input.slug.trim(),
+        },
+        client
+      )
+
+      await setTenantContext(client, creator.id)
+      await recordAuditLog(client, {
+        actorCreatorId: creator.id,
+        action: AUDIT_ACTIONS.CREATOR_SIGNED_UP,
+        targetType: AUDIT_TARGET_TYPES.CREATOR,
+        targetId: creator.id,
+        metadata: {
+          email: creator.email,
+          slug: creator.slug,
+        },
+      })
+
+      await client.query('commit')
+
+      return buildAuthResponse(creator)
+    } catch (error) {
+      await client.query('rollback')
+      throw error
+    } finally {
+      client.release()
+    }
   } catch (error) {
     mapCreatorConflict(error)
   }
@@ -89,9 +122,20 @@ export async function requestPasswordReset(input: { email: string }) {
   }
 
   const rawToken = generateRawResetToken()
-  await createPasswordResetToken({
-    creatorId: creator.id,
-    tokenHash: hashResetToken(rawToken),
+
+  await withTenantContext(creator.id, async (client) => {
+    await insertPasswordResetToken(client, {
+      creatorId: creator.id,
+      tokenHash: hashResetToken(rawToken),
+    })
+
+    await recordAuditLog(client, {
+      actorCreatorId: creator.id,
+      action: AUDIT_ACTIONS.PASSWORD_RESET_REQUESTED,
+      targetType: AUDIT_TARGET_TYPES.CREATOR,
+      targetId: creator.id,
+      metadata: {},
+    })
   })
 
   if (getEnv().NODE_ENV === 'production') {
@@ -110,16 +154,37 @@ export async function requestPasswordReset(input: { email: string }) {
 }
 
 export async function confirmPasswordReset(input: { token: string; newPassword: string }) {
-  const consumed = await consumePasswordResetToken({
-    tokenHash: hashResetToken(input.token),
-    newPasswordHash: await hashPassword(input.newPassword),
-  })
+  const client = await getRuntimePool().connect()
 
-  if (!consumed) {
-    throw new AppError(400, 'INVALID_RESET_TOKEN', 'Password reset token is invalid or expired')
+  try {
+    await client.query('begin')
+
+    const creatorId = await consumePasswordResetTokenWithClient(client, {
+      tokenHash: hashResetToken(input.token),
+      newPasswordHash: await hashPassword(input.newPassword),
+    })
+
+    if (!creatorId) {
+      throw new AppError(400, 'INVALID_RESET_TOKEN', 'Password reset token is invalid or expired')
+    }
+
+    await setTenantContext(client, creatorId)
+    await recordAuditLog(client, {
+      actorCreatorId: creatorId,
+      action: AUDIT_ACTIONS.PASSWORD_RESET_CONFIRMED,
+      targetType: AUDIT_TARGET_TYPES.CREATOR,
+      targetId: creatorId,
+      metadata: {},
+    })
+
+    await client.query('commit')
+    return { success: true as const }
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    client.release()
   }
-
-  return { success: true as const }
 }
 
 export async function getCurrentCreatorProfile(creatorId: string) {
