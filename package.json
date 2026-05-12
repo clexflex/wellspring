@@ -7,14 +7,19 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace apps/web",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
     "dev:web": "npm run dev --workspace apps/web",
-    "dev:api": "npm run dev --workspace apps/api",
-    "build": "npm run build --workspace apps/web",
+    "dev:api": "dotenv -e .env.local -- npm run dev --workspace apps/api",
+    "build": "npm run build --workspace apps/web && npm run build --workspace apps/api",
     "build:web": "npm run build --workspace apps/web",
-    "test": "echo \"Tests are not configured yet\"",
-    "db:migrate": "echo \"Database migrations are not configured yet\"",
-    "db:seed": "echo \"Database seed is not configured yet\"",
+    "test": "dotenv -e .env.local -- npm run test --workspace apps/api",
+    "db:migrate": "dotenv -e .env.local -- sh -c 'npx supabase db push --workdir . --db-url \"$DATABASE_ADMIN_URL\" --include-roles --yes && npm run bootstrap-role --workspace apps/api'",
+    "db:seed": "dotenv -e .env.local -- npm run seed --workspace apps/api",
     "lint": "npm run lint --workspace apps/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "dotenv-cli": "^11.0.0",
+    "supabase": "^2.98.2"
   }
 }

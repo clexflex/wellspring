@@ -1,0 +1,5 @@
+process.env.NODE_ENV = 'test'
+process.env.API_PORT ??= '4001'
+process.env.APP_ORIGIN ??= 'http://localhost:3000'
+process.env.DATABASE_URL ??= 'postgresql://runtime:runtime@localhost:5432/wellspring'
+process.env.DATABASE_ADMIN_URL ??= 'postgresql://admin:admin@localhost:5432/wellspring'
