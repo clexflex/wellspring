@@ -1,4 +1,5 @@
 import { getAdminPool } from '../db/admin'
+import { hashPassword } from '../auth/passwords'
 import { seedCreators } from './seed-data'
 
 async function main() {
@@ -19,12 +20,14 @@ async function main() {
     await client.query('delete from public.creators where id = any($1::uuid[])', [creatorIds])
 
     for (const creator of seedCreators) {
+      const passwordHash = await hashPassword(creator.password)
+
       await client.query(
         `
           insert into public.creators (id, email, password_hash, display_name, slug)
           values ($1, $2, $3, $4, $5)
         `,
-        [creator.id, creator.email, creator.passwordHash, creator.displayName, creator.slug]
+        [creator.id, creator.email, passwordHash, creator.displayName, creator.slug]
       )
 
       for (const program of creator.programs) {

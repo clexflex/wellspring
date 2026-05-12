@@ -6,6 +6,9 @@ const envSchema = z.object({
   APP_ORIGIN: z.string().url(),
   DATABASE_URL: z.string().min(1),
   DATABASE_ADMIN_URL: z.string().min(1),
+  JWT_SECRET: z.string().min(1),
+  JWT_EXPIRES_IN: z.string().min(1),
+  PASSWORD_RESET_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive(),
 })
 
 export type AppEnv = z.infer<typeof envSchema>

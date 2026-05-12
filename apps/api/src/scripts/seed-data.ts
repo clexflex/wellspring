@@ -1,7 +1,7 @@
 export type SeedCreator = {
   id: string
   email: string
-  passwordHash: string
+  password: string
   displayName: string
   slug: string
   programs: Array<{
@@ -25,7 +25,7 @@ export const seedCreators: SeedCreator[] = [
   {
     id: '00000000-0000-0000-0000-000000000001',
     email: 'ava@wellspring.local',
-    passwordHash: 'seed-password-hash-ava',
+    password: 'Wellspring123!',
     displayName: 'Ava Bloom',
     slug: 'ava-bloom',
     programs: Array.from({ length: 3 }, (_, programIndex) => ({
@@ -43,7 +43,7 @@ export const seedCreators: SeedCreator[] = [
   {
     id: '00000000-0000-0000-0000-000000000002',
     email: 'milo@wellspring.local',
-    passwordHash: 'seed-password-hash-milo',
+    password: 'Wellspring123!',
     displayName: 'Milo Tide',
     slug: 'milo-tide',
     programs: Array.from({ length: 3 }, (_, programIndex) => ({

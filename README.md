@@ -2,11 +2,12 @@
 
 Wellspring is a multi-tenant content management platform for wellness creators.
 
-Phase 1 establishes the backend and database foundation:
+Phases 1 and 2 establish the backend foundation and custom creator authentication:
 - Express + TypeScript API in `apps/api`
 - PostgreSQL schema managed through Supabase SQL migrations
 - split admin/runtime database roles
 - RLS-based tenant isolation with transaction-local tenant context
+- custom JWT auth for creators
 - deterministic seed data
 
 ## Tech Stack
@@ -32,7 +33,8 @@ Phase 1 establishes the backend and database foundation:
 1. Copy `.env.example` values into `.env.local`.
 2. Set `DATABASE_ADMIN_URL` to the Supabase `postgres` connection.
 3. Set `DATABASE_URL` to the restricted runtime role connection for `wellspring_app`.
-4. Keep `.env.local` private and untracked.
+4. Set `JWT_SECRET`, `JWT_EXPIRES_IN`, and `PASSWORD_RESET_TOKEN_EXPIRES_MINUTES`.
+5. Keep `.env.local` private and untracked.
 
 ## Commands
 
@@ -40,25 +42,37 @@ Phase 1 establishes the backend and database foundation:
 - `npm run dev:web` starts the Next.js app.
 - `npm run dev:api` starts the Express API with `tsx watch`.
 - `npm run build` builds `apps/web` and `apps/api`.
-- `npm run test` runs the API test suite, including tenant-isolation integration tests.
+- `npm run test` runs the API test suite, including auth and tenant-isolation integration tests.
 - `npm run db:migrate` pushes SQL migrations to Supabase and bootstraps the runtime DB role password.
 - `npm run db:seed` seeds 2 creators, 3 programs per creator, and about 10 sessions per program.
 
-## Phase 1 Database Foundation
-
-- Migrations live under `supabase/migrations`.
-- Custom DB roles live in `supabase/roles.sql`.
-- Tenant-owned tables use `creator_id uuid not null default app.current_creator_id()`.
-- The API uses a transaction helper that sets `app.current_creator_id` locally before tenant-scoped queries.
-- RLS with `FORCE ROW LEVEL SECURITY` protects tenant-owned tables for the runtime role.
-
-## Current API Surface
+## API Surface
 
 - `GET /health` returns `{ "status": "ok" }`.
+- `POST /api/auth/signup` creates a creator and returns `{ creator, token }`.
+- `POST /api/auth/login` returns `{ creator, token }` for valid credentials.
+- `POST /api/auth/password-reset/request` always returns success and, in non-production, includes a debug reset token and URL.
+- `POST /api/auth/password-reset/confirm` consumes a reset token and updates the password.
+- `GET /api/auth/me` returns the authenticated creator profile from a Bearer token.
+
+## Auth Notes
+
+- Supabase Auth is not used.
+- Cookies are deferred; API auth uses `Authorization: Bearer <token>`.
+- `public.creators` is treated as a narrow auth identity table for signup/login/me.
+- Tenant-owned content tables remain protected by RLS and `withTenantContext(...)`.
+- Password reset confirmation uses a private database function to consume the token and update the password atomically.
+- Existing JWTs are not revoked when a password changes in this phase.
+
+## Seeded Dev Credentials
+
+After `npm run db:seed`:
+- `ava@wellspring.local` / `Wellspring123!`
+- `milo@wellspring.local` / `Wellspring123!`
 
 ## Notes
 
 - Supabase is used as hosted PostgreSQL only.
-- Supabase Auth and Supabase Storage are not used for application features.
+- Supabase Storage is not used for application features.
 - The frontend must not query application tables directly.
-- Full auth, CRUD routes, CSV import, uploads, and admin screens are deferred to later phases.
+- Program CRUD, session CRUD, CSV import, uploads, audit-log writes, and frontend auth screens are deferred to later phases.
