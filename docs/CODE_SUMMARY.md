@@ -15,13 +15,17 @@
 - `src/audit/repository.ts`: tenant-scoped audit log query helpers with filters and cursor pagination.
 - `src/audit/service.ts`: route-facing audit log listing orchestration and cursor validation.
 - `src/audit/presenters.ts`: audit API presenters plus opaque cursor encode/decode helpers.
+- `src/programs/repository.ts`: explicit runtime-role SQL for program list/create/get/update/delete operations.
+- `src/programs/service.ts`: tenant-scoped program CRUD orchestration, 404 mapping, and same-transaction audit writes.
+- `src/programs/presenters.ts`: program API response mapping.
 - `src/http/middleware/auth.ts`: Bearer token verification and authenticated request attachment.
 - `src/http/routes/audit-logs.ts`: authenticated audit log endpoint definition.
 - `src/http/routes/auth.ts`: auth endpoint definitions.
+- `src/http/routes/programs.ts`: authenticated program CRUD endpoint definitions.
 - `src/db/admin.ts`: admin database pool for migrations, seed, and privileged test setup.
 - `src/db/pool.ts`: runtime database pool for the restricted app role.
 - `src/db/tenant-context.ts`: reusable transaction helpers for new runtime transactions and existing runtime clients that need tenant context.
-- `src/db/test-helpers.ts`: database reset, auth fixture helpers, audit fixture helpers, and tenant-isolation fixture helpers for integration tests.
+- `src/db/test-helpers.ts`: database reset, auth fixture helpers, program fixture helpers, audit fixture helpers, and tenant-isolation fixture helpers for integration tests.
 - `src/lib/logger.ts`: structured JSON request logging with one canonical `request_id`, `tenant_id`, `method`, `path`, and `status_code` payload per request.
 - `src/scripts/bootstrap-db-role.ts`: syncs the runtime role password with `DATABASE_URL` after role creation.
 - `src/scripts/seed-data.ts`: deterministic seed fixtures, including stable dev passwords.
@@ -40,4 +44,5 @@
 - database-layer tenant isolation for reads, updates, forged `creator_id`, and cross-tenant session linkage
 - creator signup, login, bearer auth, password reset request/confirm, and sensitive-field exclusion
 - tenant-scoped audit log retrieval, action/date filters, cursor pagination, and direct `recordAuditLog(...)` behavior
+- tenant-safe program CRUD, cross-tenant 404 behavior, forged `creator_id` rejection, and audit logging on create/update/delete
 - request logging shape with canonical top-level request metadata

@@ -1,6 +1,6 @@
 # Architecture Review
 
-## Phase 1 Through 3 Decisions
+## Phase 1 Through 4 Decisions
 
 - The API talks to PostgreSQL through `pg` directly instead of an ORM.
 - Schema changes are migration-managed SQL under `supabase/migrations`.
@@ -8,6 +8,7 @@
 - Database access is split between an admin role for migrations/seed and a restricted runtime role for application queries.
 - Creator authentication is custom JWT auth implemented in the Express API.
 - Audit logs are read and written through the runtime role under tenant context; no admin connection participates in normal request flows.
+- Program CRUD also runs entirely through the runtime role under tenant context; controllers never choose the tenant in SQL.
 
 ## Why This Shape
 
@@ -16,6 +17,7 @@
 - `withTenantContext` keeps tenant scoping close to the transaction boundary instead of trusting controller input.
 - `public.creators` is handled as a narrow auth identity table because signup and login must work before a tenant context exists.
 - The audit helper accepts an existing runtime `PoolClient` so future write flows can persist their audit row in the same transaction as the write they describe.
+- Program CRUD keeps SQL explicit and small instead of introducing a repository abstraction layer beyond the minimal module boundary.
 
 ## Auth Tradeoffs
 
@@ -36,6 +38,17 @@
   - `PASSWORD_RESET_REQUESTED`
   - `PASSWORD_RESET_CONFIRMED`
 
+## Program CRUD Design
+
+- Program routes use `withTenantContext(auth.creatorId, ...)` for every read and write.
+- Cross-tenant access returns `404` because RLS hides rows before the application can distinguish “missing” from “belongs to another tenant.”
+- Program writes record audit rows in the same tenant transaction/client as the program mutation:
+  - `PROGRAM_CREATED`
+  - `PROGRAM_UPDATED`
+  - `PROGRAM_DELETED`
+- Program list pagination is intentionally simple in Phase 4: `limit + offset`, ordered by `updated_at desc, id desc`.
+- Program deletion follows the existing schema contract and cascade-deletes sessions because `sessions_program_fk` is already `on delete cascade`.
+
 ## Request Logging
 
 - Request logs now emit one canonical structured payload per request:
@@ -46,9 +59,9 @@
   - `status_code`
 - The previous duplication bug came from mixing mutable `req.url` with pino-http custom props; the logger now records `req.originalUrl` on response finish so mounted routes log the correct path once.
 
-## Honest Gaps After Phase 3
+## Honest Gaps After Phase 4
 
-- No program/session CRUD endpoints yet.
+- No session CRUD endpoints yet.
 - No CSV import, S3 upload flow, or frontend auth screens yet.
-- Audit coverage is intentionally limited to the auth write flows implemented so far; future program/session/import/upload writes still need to call the shared helper.
+- Audit coverage now includes auth writes and program writes; future session/import/upload writes still need to call the shared helper.
 - Bearer tokens are the only auth transport; cookie/session handling is deferred.

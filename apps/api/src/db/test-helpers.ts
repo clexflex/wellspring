@@ -120,6 +120,53 @@ export async function findLatestAuditLogByCreator(creatorId: string) {
   return result.rows[0] ?? null
 }
 
+export async function createProgramFixture(input: {
+  creatorId: string
+  title: string
+  description: string
+  updatedAt?: Date | string
+}): Promise<{ id: string; creator_id: string; title: string; description: string; updated_at: Date }> {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    title: string
+    description: string
+    updated_at: Date
+  }>(
+    `
+      insert into public.programs (creator_id, title, description, updated_at)
+      values ($1, $2, $3, coalesce($4::timestamptz, now()))
+      returning id, creator_id, title, description, updated_at
+    `,
+    [input.creatorId, input.title, input.description, input.updatedAt ? new Date(input.updatedAt) : null]
+  )
+
+  return result.rows[0]
+}
+
+export async function findProgramById(programId: string) {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    title: string
+    description: string
+    created_at: Date
+    updated_at: Date
+  }>(
+    `
+      select id, creator_id, title, description, created_at, updated_at
+      from public.programs
+      where id = $1
+      limit 1
+    `,
+    [programId]
+  )
+
+  return result.rows[0] ?? null
+}
+
 export async function createAuditLog(input: {
   creatorId: string
   actorCreatorId?: string

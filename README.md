@@ -2,13 +2,14 @@
 
 Wellspring is a multi-tenant content management platform for wellness creators.
 
-Phases 1 through 3 establish the backend foundation, custom creator authentication, and audit log infrastructure:
+Phases 1 through 4 establish the backend foundation, custom creator authentication, audit log infrastructure, and tenant-safe program CRUD:
 - Express + TypeScript API in `apps/api`
 - PostgreSQL schema managed through Supabase SQL migrations
 - split admin/runtime database roles
 - RLS-based tenant isolation with transaction-local tenant context
 - custom JWT auth for creators
 - tenant-scoped audit logging and retrieval
+- tenant-safe program CRUD
 - deterministic seed data
 
 ## Tech Stack
@@ -56,6 +57,11 @@ Phases 1 through 3 establish the backend foundation, custom creator authenticati
 - `POST /api/auth/password-reset/confirm` consumes a reset token and updates the password.
 - `GET /api/auth/me` returns the authenticated creator profile from a Bearer token.
 - `GET /api/audit-logs` returns tenant-scoped audit logs with optional `from`, `to`, `action`, `limit`, and `cursor` query params.
+- `GET /api/programs` returns tenant-scoped programs with `limit` and `offset` pagination.
+- `POST /api/programs` creates a program for the authenticated creator.
+- `GET /api/programs/:programId` returns one tenant-owned program.
+- `PATCH /api/programs/:programId` updates one tenant-owned program.
+- `DELETE /api/programs/:programId` deletes one tenant-owned program.
 
 ## Auth Notes
 
@@ -84,6 +90,21 @@ Phases 1 through 3 establish the backend foundation, custom creator authenticati
   - `PASSWORD_RESET_REQUESTED`
   - `PASSWORD_RESET_CONFIRMED`
 
+## Program API Notes
+
+- All program endpoints require `Authorization: Bearer <token>`.
+- Program list ordering is `updated_at desc, id desc`.
+- Program list pagination uses:
+  - `limit` default `25`, max `100`
+  - `offset` default `0`
+- Request bodies must not include `creator_id`; those requests are rejected with `VALIDATION_ERROR`.
+- Cross-tenant or missing program access returns `404`.
+- Program write actions record audit rows:
+  - `PROGRAM_CREATED`
+  - `PROGRAM_UPDATED`
+  - `PROGRAM_DELETED`
+- Program deletion follows the existing schema behavior and cascade-deletes that program's sessions.
+
 ## Seeded Dev Credentials
 
 After `npm run db:seed`:
@@ -95,4 +116,4 @@ After `npm run db:seed`:
 - Supabase is used as hosted PostgreSQL only.
 - Supabase Storage is not used for application features.
 - The frontend must not query application tables directly.
-- Program CRUD, session CRUD, CSV import, uploads, and frontend auth screens are deferred to later phases.
+- Session CRUD, CSV import, uploads, and frontend auth screens are deferred to later phases.
