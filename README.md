@@ -2,7 +2,7 @@
 
 Wellspring is a multi-tenant content management platform for wellness creators.
 
-Phases 1 through 5 establish the backend foundation, custom creator authentication, audit log infrastructure, tenant-safe program CRUD, and session CRUD with reorder:
+Phases 1 through 7 establish the backend foundation, custom creator authentication, audit log infrastructure, tenant-safe content APIs, CSV import idempotency, and S3 pre-signed upload flow:
 - Express + TypeScript API in `apps/api`
 - PostgreSQL schema managed through Supabase SQL migrations
 - split admin/runtime database roles
@@ -11,6 +11,8 @@ Phases 1 through 5 establish the backend foundation, custom creator authenticati
 - tenant-scoped audit logging and retrieval
 - tenant-safe program CRUD
 - tenant-safe session CRUD and reorder
+- tenant-safe idempotent CSV session import
+- tenant-scoped S3 pre-signed media upload URL generation
 - deterministic seed data
 
 ## Tech Stack
@@ -37,7 +39,8 @@ Phases 1 through 5 establish the backend foundation, custom creator authenticati
 2. Set `DATABASE_ADMIN_URL` to the Supabase `postgres` connection.
 3. Set `DATABASE_URL` to the restricted runtime role connection for `wellspring_app`.
 4. Set `JWT_SECRET`, `JWT_EXPIRES_IN`, and `PASSWORD_RESET_TOKEN_EXPIRES_MINUTES`.
-5. Keep `.env.local` private and untracked.
+5. Set AWS upload vars: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET`, `S3_PUBLIC_BASE_URL`, `S3_PRESIGNED_URL_EXPIRES_SECONDS`, and `MAX_MEDIA_UPLOAD_BYTES`.
+6. Keep `.env.local` private and untracked.
 
 ## Commands
 
@@ -70,6 +73,7 @@ Phases 1 through 5 establish the backend foundation, custom creator authenticati
 - `DELETE /api/sessions/:sessionId` deletes one tenant-owned session.
 - `POST /api/programs/:programId/sessions/reorder` atomically reorders all sessions in a program.
 - `POST /api/programs/:programId/sessions/import` bulk-imports sessions from CSV with tenant-scoped idempotency.
+- `POST /api/uploads/session-media/presign` generates a tenant-scoped pre-signed S3 PUT URL for session media upload.
 
 ## Auth Notes
 
@@ -168,6 +172,41 @@ Example request:
 }
 ```
 
+## Session Media Upload URL Notes
+
+- The upload endpoint requires `Authorization: Bearer <token>`.
+- Request body is strict JSON:
+  - `filename` (non-empty, <=255 chars, no path separators/control chars)
+  - `contentType`
+  - `contentLength`
+- Allowed content types:
+  - `audio/mpeg`
+  - `audio/mp3`
+  - `audio/mp4`
+  - `audio/wav`
+  - `audio/x-wav`
+  - `video/mp4`
+  - `video/quicktime`
+  - `video/webm`
+- `contentLength` must be <= `MAX_MEDIA_UPLOAD_BYTES`.
+- The response includes:
+  - `uploadUrl` (time-limited pre-signed PUT URL)
+  - `key` (`creators/{creatorId}/session-media/{uuid}.{ext}`)
+  - `publicUrl` (`S3_PUBLIC_BASE_URL + "/" + key`)
+  - `expiresInSeconds`
+- The API never returns AWS credentials.
+- Upload URL creation records a tenant-scoped `UPLOAD_URL_CREATED` audit event.
+
+Example request:
+
+```json
+{
+  "filename": "sleep-reset-intro.mp4",
+  "contentType": "video/mp4",
+  "contentLength": 52428800
+}
+```
+
 ## Seeded Dev Credentials
 
 After `npm run db:seed`:
@@ -179,4 +218,4 @@ After `npm run db:seed`:
 - Supabase is used as hosted PostgreSQL only.
 - Supabase Storage is not used for application features.
 - The frontend must not query application tables directly.
-- CSV import, uploads, and frontend auth screens are deferred to later phases.
+- Frontend upload UI and multipart upload support are deferred to later phases.

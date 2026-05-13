@@ -9,6 +9,13 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().min(1),
   PASSWORD_RESET_TOKEN_EXPIRES_MINUTES: z.coerce.number().int().positive(),
+  AWS_ACCESS_KEY_ID: z.string().min(1),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1),
+  AWS_REGION: z.string().min(1),
+  AWS_S3_BUCKET: z.string().min(1),
+  S3_PUBLIC_BASE_URL: z.string().url(),
+  S3_PRESIGNED_URL_EXPIRES_SECONDS: z.coerce.number().int().positive().max(3600),
+  MAX_MEDIA_UPLOAD_BYTES: z.coerce.number().int().positive(),
 })
 
 export type AppEnv = z.infer<typeof envSchema>

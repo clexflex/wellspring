@@ -117,8 +117,36 @@
 - Row-level validation failures do not abort the import; valid rows continue and final status becomes `completed_with_errors`.
 - Import status summaries are persisted in `bulk_imports.result_summary` (JSON) instead of adding new columns in this phase, trading schema strictness for lower migration overhead.
 
-## Honest Gaps After Phase 6
+## S3 Pre-Signed Upload URL Design
 
-- No S3 upload flow or frontend auth/import screens yet.
-- Audit coverage now includes auth, program, and session writes; future import/upload writes still need to call the shared helper.
+- Phase 7 adds `POST /api/uploads/session-media/presign` to generate authenticated tenant-scoped S3 pre-signed PUT URLs for session media uploads.
+- The endpoint validates:
+  - strict JSON body shape
+  - supported audio/video content type allowlist
+  - `contentLength` upper bound via `MAX_MEDIA_UPLOAD_BYTES`
+  - filename shape (length, unsupported characters, path separators)
+  - filename extension compatibility with declared content type
+- Object keys are always server-generated and tenant-scoped:
+  - `creators/{creatorId}/session-media/{uuid}.{ext}`
+- The request body never controls bucket or arbitrary key paths.
+- The API returns:
+  - `uploadUrl`
+  - `key`
+  - `publicUrl`
+  - `expiresInSeconds`
+- `publicUrl` is derived from `S3_PUBLIC_BASE_URL + "/" + key`, intentionally decoupled from bucket internals for future CloudFront/signed-GET evolution.
+
+### Upload Security and Audit Behavior
+
+- URL expiry is env-driven (`S3_PRESIGNED_URL_EXPIRES_SECONDS`) and bounded in env validation to prevent long-lived URLs.
+- Pre-signing uses AWS SDK v3 `PutObjectCommand` + `getSignedUrl` and constrains signature scope to the configured bucket, key, and content type.
+- AWS credentials are never returned by the API and are not logged.
+- Every pre-sign request records `UPLOAD_URL_CREATED` in `audit_logs` inside `withTenantContext(...)` using the runtime role.
+- Audit metadata is limited to safe fields (`key`, `contentType`, `contentLength`, `expiresInSeconds`, `originalFilename`) and excludes temporary/sensitive `uploadUrl`.
+
+## Honest Gaps After Phase 7
+
+- No frontend upload UI yet.
+- No multipart upload flow yet for very large media files.
+- Audit coverage now includes auth, program, session, CSV import, and upload pre-sign writes; future write flows should continue using the shared helper.
 - Bearer tokens are the only auth transport; cookie/session handling is deferred.

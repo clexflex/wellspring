@@ -7,6 +7,7 @@ import { createHealthRouter } from './http/routes/health'
 import { createImportsRouter } from './http/routes/imports'
 import { createProgramsRouter } from './http/routes/programs'
 import { createSessionsRouter } from './http/routes/sessions'
+import { createUploadsRouter } from './http/routes/uploads'
 import { httpLogger } from './lib/logger'
 
 export function createApp() {
@@ -20,6 +21,7 @@ export function createApp() {
   app.use('/api/audit-logs', createAuditLogsRouter())
   app.use('/api/programs', createProgramsRouter())
   app.use('/api', createImportsRouter())
+  app.use('/api', createUploadsRouter())
   app.use('/api', createSessionsRouter())
 
   app.use(notFoundHandler)
