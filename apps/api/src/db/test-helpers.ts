@@ -6,7 +6,7 @@ export async function resetDatabase(): Promise<void> {
   const adminPool = getAdminPool()
 
   await adminPool.query(
-    'truncate table public.audit_logs, public.password_reset_tokens, public.sessions, public.programs, public.creators restart identity cascade'
+    'truncate table public.bulk_import_rows, public.bulk_imports, public.audit_logs, public.password_reset_tokens, public.sessions, public.programs, public.creators restart identity cascade'
   )
 }
 
@@ -381,6 +381,55 @@ export async function createAuditLog(input: {
   )
 
   return result.rows[0]
+}
+
+export async function findBulkImportByClientImportId(creatorId: string, clientImportId: string) {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    client_import_id: string
+    status: string
+    result_summary: Record<string, unknown>
+    created_at: Date
+    updated_at: Date
+  }>(
+    `
+      select id, creator_id, client_import_id, status, result_summary, created_at, updated_at
+      from public.bulk_imports
+      where creator_id = $1
+        and client_import_id = $2
+      limit 1
+    `,
+    [creatorId, clientImportId]
+  )
+
+  return result.rows[0] ?? null
+}
+
+export async function listBulkImportRowsByImportId(creatorId: string, bulkImportId: string) {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    bulk_import_id: string
+    row_number: number
+    status: string
+    error_message: string | null
+    payload: Record<string, unknown>
+    created_at: Date
+  }>(
+    `
+      select id, creator_id, bulk_import_id, row_number, status, error_message, payload, created_at
+      from public.bulk_import_rows
+      where creator_id = $1
+        and bulk_import_id = $2
+      order by row_number asc
+    `,
+    [creatorId, bulkImportId]
+  )
+
+  return result.rows
 }
 
 export async function createExpiredPasswordResetToken(creatorId: string): Promise<string> {

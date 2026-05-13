@@ -21,9 +21,14 @@
 - `src/sessions/repository.ts`: explicit runtime-role SQL for session list/create/get/update/delete, contiguous position maintenance, and reorder operations.
 - `src/sessions/service.ts`: tenant-scoped session CRUD orchestration, parent program validation, same-transaction audit writes, and safe reorder validation.
 - `src/sessions/presenters.ts`: session API response mapping.
+- `src/imports/csv-parser.ts`: CSV parsing + header/row validation for session bulk import with row-number-aware feedback and pipe-delimited tags parsing.
+- `src/imports/repository.ts`: explicit runtime-role SQL for idempotent bulk import records, row feedback persistence, max-position lookup, and imported session inserts.
+- `src/imports/service.ts`: tenant-scoped bulk import orchestration with program ownership checks, idempotent replay, transactional row processing, and same-transaction audit logging.
+- `src/imports/presenters.ts`: import response projection from persisted import and row-feedback records.
 - `src/http/middleware/auth.ts`: Bearer token verification and authenticated request attachment.
 - `src/http/routes/audit-logs.ts`: authenticated audit log endpoint definition.
 - `src/http/routes/auth.ts`: auth endpoint definitions.
+- `src/http/routes/imports.ts`: authenticated session CSV import endpoint definition.
 - `src/http/routes/programs.ts`: authenticated program CRUD endpoint definitions.
 - `src/http/routes/sessions.ts`: authenticated session CRUD and reorder endpoint definitions.
 - `src/db/admin.ts`: admin database pool for migrations, seed, and privileged test setup.
@@ -50,4 +55,5 @@
 - tenant-scoped audit log retrieval, action/date filters, cursor pagination, and direct `recordAuditLog(...)` behavior
 - tenant-safe program CRUD, cross-tenant 404 behavior, forged `creator_id` rejection, and audit logging on create/update/delete
 - tenant-safe session CRUD, cross-tenant 404 behavior, forged `creator_id` rejection, contiguous position handling, exact-set reorder validation, and audit logging on create/update/delete/reorder
+- tenant-safe session CSV import with row-level feedback persistence, tenant-scoped idempotency replay, and `SESSIONS_IMPORTED` audit logging
 - request logging shape with canonical top-level request metadata

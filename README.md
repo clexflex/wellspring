@@ -69,6 +69,7 @@ Phases 1 through 5 establish the backend foundation, custom creator authenticati
 - `PATCH /api/sessions/:sessionId` updates one tenant-owned session.
 - `DELETE /api/sessions/:sessionId` deletes one tenant-owned session.
 - `POST /api/programs/:programId/sessions/reorder` atomically reorders all sessions in a program.
+- `POST /api/programs/:programId/sessions/import` bulk-imports sessions from CSV with tenant-scoped idempotency.
 
 ## Auth Notes
 
@@ -129,6 +130,43 @@ Phases 1 through 5 establish the backend foundation, custom creator authenticati
   - provided `position` shifts existing sessions upward to keep positions contiguous
 - Delete behavior renumbers later sessions downward to keep positions contiguous.
 - Reorder requires the submitted `sessionIds` to exactly match the program's current sessions and applies contiguous 1-based positions atomically.
+
+## Session CSV Import Notes
+
+- The import endpoint requires `Authorization: Bearer <token>`.
+- Request body is strict JSON:
+  - `clientImportId` (non-empty string, idempotency key)
+  - `csv` (CSV string)
+- Required CSV headers:
+  - `title`
+  - `durationSeconds`
+  - `instructorName`
+- Optional CSV headers:
+  - `description`
+  - `tags` (pipe-delimited, e.g. `sleep|intro|focus`)
+  - `mediaUrl`
+  - `mediaType`
+  - `position` (accepted but ignored in Phase 6)
+- Disallowed headers:
+  - `creator_id`
+  - `program_id`
+- Unknown headers are rejected for the entire import request.
+- Empty lines are ignored.
+- Valid rows append after current program sessions in CSV row order with contiguous positions.
+- Row-level feedback is persisted and returned for both inserted and failed rows.
+- Idempotency behavior:
+  - uniqueness is enforced by `unique (creator_id, client_import_id)`
+  - reusing the same `clientImportId` for the same creator replays the prior persisted result without re-inserting sessions
+  - the same `clientImportId` may be used by different creators
+
+Example request:
+
+```json
+{
+  "clientImportId": "b2d96f2d-f968-4f7f-bc95-cfcb8540ef74",
+  "csv": "title,description,durationSeconds,instructorName,tags,mediaUrl,mediaType\nIntro,Welcome,300,Ava,sleep|breath,https://example.com/intro.mp3,audio"
+}
+```
 
 ## Seeded Dev Credentials
 

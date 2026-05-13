@@ -78,8 +78,47 @@
   - `status_code`
 - The previous duplication bug came from mixing mutable `req.url` with pino-http custom props; the logger now records `req.originalUrl` on response finish so mounted routes log the correct path once.
 
-## Honest Gaps After Phase 5
+## CSV Import and Idempotency Design
 
-- No CSV import, S3 upload flow, or frontend auth screens yet.
+- Phase 6 adds `POST /api/programs/:programId/sessions/import` for tenant-scoped bulk session import from JSON payloads containing CSV text.
+- The route is runtime-role only and runs entirely inside `withTenantContext(auth.creatorId, ...)`.
+- Program ownership is validated with tenant-scoped `findProgramById(...)`; cross-tenant or missing programs return `404`.
+- CSV parsing uses `csv-parse/sync` with strict header rules:
+  - required: `title`, `durationSeconds`, `instructorName`
+  - optional: `description`, `tags`, `mediaUrl`, `mediaType`, `position`
+  - disallowed: `creator_id`, `program_id`
+  - unknown headers reject the whole request
+- `tags` are pipe-delimited (`tag1|tag2|tag3`), trimmed, empties dropped, and deduplicated.
+- `position` is accepted as a column but ignored in this phase; valid imported rows append in CSV order after current max position.
+- Row-level feedback is persisted in `bulk_import_rows` for every parsed data row:
+  - `status` (`inserted` or `failed`)
+  - `error_message` for quick diagnostics
+  - structured `payload` including normalized row data, `errors[]`, and inserted `sessionId` when available
+
+### Idempotency Behavior
+
+- Idempotency key is `clientImportId`, scoped by tenant via existing DB constraint:
+  - `unique (creator_id, client_import_id)` on `bulk_imports`
+- First request path:
+  - insert `bulk_imports` row with `pending`
+  - parse + validate rows
+  - insert valid sessions and row feedback
+  - update summary/status
+  - write `SESSIONS_IMPORTED` audit row in the same transaction
+- Retry path:
+  - `insert ... on conflict do nothing` indicates prior import exists
+  - return the previously persisted import + row feedback with `replayed: true`
+  - no duplicate session inserts occur
+- Same `clientImportId` is allowed across different creators due tenant-scoped uniqueness.
+
+### Failure Modes and Tradeoffs
+
+- Malformed CSV/header-level violations return `VALIDATION_ERROR` and fail the request early.
+- Row-level validation failures do not abort the import; valid rows continue and final status becomes `completed_with_errors`.
+- Import status summaries are persisted in `bulk_imports.result_summary` (JSON) instead of adding new columns in this phase, trading schema strictness for lower migration overhead.
+
+## Honest Gaps After Phase 6
+
+- No S3 upload flow or frontend auth/import screens yet.
 - Audit coverage now includes auth, program, and session writes; future import/upload writes still need to call the shared helper.
 - Bearer tokens are the only auth transport; cookie/session handling is deferred.
