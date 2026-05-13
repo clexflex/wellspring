@@ -1,5 +1,7 @@
+import cors from 'cors'
 import express from 'express'
 
+import { getEnv } from './config/env'
 import { errorHandler, notFoundHandler } from './http/middleware/error-handler'
 import { createAuthRouter } from './http/routes/auth'
 import { createAuditLogsRouter } from './http/routes/audit-logs'
@@ -12,7 +14,16 @@ import { httpLogger } from './lib/logger'
 
 export function createApp() {
   const app = express()
+  const env = getEnv()
 
+  app.use(
+    cors({
+      origin: env.APP_ORIGIN,
+      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
+      optionsSuccessStatus: 204,
+    })
+  )
   app.use(httpLogger)
   app.use(express.json())
 

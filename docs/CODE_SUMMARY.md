@@ -44,6 +44,31 @@
 - `src/scripts/seed-data.ts`: deterministic seed fixtures, including stable dev passwords and session metadata fields.
 - `src/scripts/seed.ts`: transactional seed entrypoint that hashes seeded creator passwords and inserts session metadata columns.
 
+## `apps/web`
+
+- `src/app/layout.tsx`: root metadata and auth-provider wrapper for the App Router tree.
+- `src/app/page.tsx`: client-side root redirect to `/programs` or `/login` based on auth state.
+- `src/app/(auth)/*`: public auth screens for signup, login, forgot-password, and reset-password.
+- `src/app/(protected)/layout.tsx`: protected app shell entrypoint using the auth guard and top nav.
+- `src/app/(protected)/programs/*`: program list/create/edit and program-scoped session/import screens.
+- `src/app/(protected)/sessions/[sessionId]/edit/page.tsx`: direct edit screen for an existing tenant-owned session.
+- `src/app/(protected)/audit-logs/page.tsx`: audit log filter and cursor-pagination screen.
+- `src/components/auth/auth-provider.tsx`: localStorage-backed JWT auth bootstrap, current creator state, login/logout helpers, and invalidation handling.
+- `src/components/auth/*-form.tsx`: controlled auth forms with Zod validation and API error mapping.
+- `src/components/layout/app-shell.tsx` and `src/components/layout/app-nav.tsx`: protected admin layout and nav.
+- `src/components/programs/*`: program form and list components for CRUD flows.
+- `src/components/sessions/*`: session form, reorder controls, media upload field, and session list rendering.
+- `src/components/imports/session-import-form.tsx`: CSV textarea/file loader, idempotency key input, result summary, and row feedback table.
+- `src/components/audit/*`: audit filter controls and table rendering with metadata details.
+- `src/components/shared/*`: reusable error, empty, loading, and page-header UI helpers.
+- `src/components/ui/*`: minimal local shadcn-style primitives used by the admin panel.
+- `src/lib/api/client.ts`: typed fetch wrapper around `NEXT_PUBLIC_API_BASE_URL` with Bearer token attachment, structured API errors, and auth invalidation on `401`.
+- `src/lib/api/types.ts`: frontend API contracts for auth, programs, sessions, imports, uploads, and audit logs.
+- `src/lib/auth/*`: JWT localStorage persistence and cross-component auth invalidation events.
+- `src/lib/validation/*`: frontend Zod validation schemas mirroring the API contracts for auth, programs, and sessions.
+- `src/lib/uploads/*`: allowed media type constants and direct-to-S3 upload flow helper.
+- `src/lib/imports/csv-example.ts`: visible CSV sample content for the import screen.
+
 ## `supabase`
 
 - `roles.sql`: restricted runtime role definition for `wellspring_app`.
@@ -62,3 +87,4 @@
 - tenant-safe session CSV import with row-level feedback persistence, tenant-scoped idempotency replay, and `SESSIONS_IMPORTED` audit logging
 - tenant-scoped S3 pre-signed session media upload URL generation, content-type/size validation, and `UPLOAD_URL_CREATED` audit logging
 - request logging shape with canonical top-level request metadata
+- frontend admin panel build covering auth, program/session management, CSV import, upload pre-signing, and audit review

@@ -150,3 +150,34 @@
 - No multipart upload flow yet for very large media files.
 - Audit coverage now includes auth, program, session, CSV import, and upload pre-sign writes; future write flows should continue using the shared helper.
 - Bearer tokens are the only auth transport; cookie/session handling is deferred.
+
+## Phase 8 Frontend Admin Panel
+
+- The admin panel is built in Next.js App Router but behaves as a thin client over the Express API.
+- All application data access stays in the browser and goes through `NEXT_PUBLIC_API_BASE_URL`; no frontend Supabase client or direct table access was added.
+- Protected routes live under a client auth guard because the Phase 8 token is stored in `localStorage`, not cookies, so server components cannot trust auth state directly.
+- Shared client modules (`src/lib/api/client.ts`, `src/lib/auth/*`) centralize Bearer token attachment, `401` invalidation, and structured error parsing so pages stay narrow.
+
+## Frontend Auth Tradeoffs
+
+- Phase 8 stores the JWT in `localStorage` for speed and implementation simplicity.
+- On app boot, the frontend treats `GET /api/auth/me` as the source of truth for the saved token.
+- This is acceptable for the current phase because the product requirement emphasizes functional coverage over hardened session transport.
+- The tradeoff is that `localStorage` is weaker than `httpOnly` cookies against XSS and lacks built-in CSRF boundaries; that hardening remains a later improvement.
+
+## Frontend Feature Shape
+
+- Programs and sessions use straightforward client-side fetch-on-mount pages rather than introducing server actions or a custom data cache layer.
+- Session reorder intentionally uses explicit up/down controls instead of drag-and-drop to keep the reorder payload exact and easier to verify.
+- Session media upload uses a two-step client flow:
+  - request tenant-scoped pre-signed PUT URL from the API
+  - upload directly from the browser to S3
+- CSV import keeps the CSV textarea as the canonical input and layers file loading on top, which simplifies idempotency retries and debugging.
+- Audit logs use cursor pagination from the API directly instead of adapting them into offset pagination in the UI.
+
+## Honest Gaps After Phase 8
+
+- The frontend does not yet use `httpOnly` cookies for auth.
+- Uploads show loading state but not byte-level progress.
+- No dedicated frontend unit/integration test harness was introduced in this phase; verification remains build-based plus backend tests and browser smoke testing.
+- The admin panel is intentionally functional rather than visually polished.

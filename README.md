@@ -15,6 +15,15 @@ Phases 1 through 7 establish the backend foundation, custom creator authenticati
 - tenant-scoped S3 pre-signed media upload URL generation
 - deterministic seed data
 
+Phase 8 adds the functional Next.js admin panel in `apps/web`:
+- creator signup, login, forgot-password, and reset-password screens
+- protected admin shell with localStorage-backed Bearer token auth
+- program CRUD screens
+- session CRUD screens with ordered reorder controls
+- direct-to-S3 session media upload flow using API pre-signed URLs
+- CSV import UI with persisted row-level feedback
+- audit log viewer with action/date filters and cursor pagination
+
 ## Tech Stack
 
 - Next.js
@@ -52,6 +61,29 @@ Phases 1 through 7 establish the backend foundation, custom creator authenticati
 - `npm run db:migrate` pushes SQL migrations to Supabase and bootstraps the runtime DB role password.
 - `npm run db:seed` seeds 2 creators, 3 programs per creator, and about 10 sessions per program.
 
+## Admin Panel Routes
+
+- `/login`
+- `/signup`
+- `/forgot-password`
+- `/reset-password?token=...`
+- `/programs`
+- `/programs/new`
+- `/programs/:programId/edit`
+- `/programs/:programId/sessions`
+- `/programs/:programId/sessions/new`
+- `/programs/:programId/sessions/import`
+- `/sessions/:sessionId/edit`
+- `/audit-logs`
+
+## Frontend Notes
+
+- `apps/web` only talks to `apps/api` through `NEXT_PUBLIC_API_BASE_URL`.
+- The admin panel does not call Supabase application tables directly.
+- Auth transport in Phase 8 uses `localStorage` plus `Authorization: Bearer <token>`.
+- This is intentionally simple for the current phase; `httpOnly` cookies would be a stronger production hardening step later.
+- Browser requests rely on API CORS allowing `APP_ORIGIN`.
+
 ## API Surface
 
 - `GET /health` returns `{ "status": "ok" }`.
@@ -84,6 +116,12 @@ Phases 1 through 7 establish the backend foundation, custom creator authenticati
 - Password reset confirmation uses a private database function to consume the token and update the password atomically.
 - Existing JWTs are not revoked when a password changes in this phase.
 - Signup and password-reset write flows now record audit entries through the runtime role inside tenant-aware transactions.
+- The frontend bootstraps auth by reading the saved token and calling `GET /api/auth/me`.
+
+## Password Reset Dev Flow
+
+- `POST /api/auth/password-reset/request` returns a debug `resetUrl` outside production.
+- The admin panel surfaces that URL on the forgot-password screen in development so the reset-password screen can be exercised end-to-end without email delivery.
 
 ## Audit Log Notes
 
@@ -218,4 +256,5 @@ After `npm run db:seed`:
 - Supabase is used as hosted PostgreSQL only.
 - Supabase Storage is not used for application features.
 - The frontend must not query application tables directly.
-- Frontend upload UI and multipart upload support are deferred to later phases.
+- The admin panel now supports the required upload pre-sign flow, but multipart uploads and upload progress bars are still deferred.
+- Add the project Loom URL to this README before final delivery.

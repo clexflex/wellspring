@@ -6,20 +6,19 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
 import { LoadingState } from '@/components/shared/loading-state'
 
-export default function HomePage() {
+export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { status } = useAuth()
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/programs')
-      return
-    }
-
     if (status === 'anonymous') {
       router.replace('/login')
     }
   }, [router, status])
 
-  return <LoadingState label="Redirecting..." />
+  if (status !== 'authenticated') {
+    return <LoadingState label="Checking your session..." />
+  }
+
+  return <>{children}</>
 }
