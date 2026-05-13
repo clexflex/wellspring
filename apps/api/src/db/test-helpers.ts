@@ -167,6 +167,184 @@ export async function findProgramById(programId: string) {
   return result.rows[0] ?? null
 }
 
+export async function createSessionFixture(input: {
+  creatorId: string
+  programId: string
+  title: string
+  description?: string
+  position: number
+  durationSeconds?: number | null
+  instructorName?: string | null
+  tags?: string[]
+  mediaUrl?: string | null
+  mediaType?: 'audio' | 'video' | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}): Promise<{
+  id: string
+  creator_id: string
+  program_id: string
+  title: string
+  description: string
+  duration_seconds: number | null
+  position: number
+  instructor_name: string | null
+  tags: string[]
+  media_url: string | null
+  media_type: 'audio' | 'video' | null
+  created_at: Date
+  updated_at: Date
+}> {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    program_id: string
+    title: string
+    description: string
+    duration_seconds: number | null
+    position: number
+    instructor_name: string | null
+    tags: string[]
+    media_url: string | null
+    media_type: 'audio' | 'video' | null
+    created_at: Date
+    updated_at: Date
+  }>(
+    `
+      insert into public.sessions (
+        creator_id,
+        program_id,
+        title,
+        description,
+        duration_seconds,
+        position,
+        instructor_name,
+        tags,
+        media_url,
+        media_type,
+        created_at,
+        updated_at
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8::text[], $9, $10, coalesce($11::timestamptz, now()), coalesce($12::timestamptz, now()))
+      returning
+        id,
+        creator_id,
+        program_id,
+        title,
+        description,
+        duration_seconds,
+        position,
+        instructor_name,
+        tags,
+        media_url,
+        media_type,
+        created_at,
+        updated_at
+    `,
+    [
+      input.creatorId,
+      input.programId,
+      input.title,
+      input.description ?? '',
+      input.durationSeconds ?? null,
+      input.position,
+      input.instructorName ?? null,
+      input.tags ?? [],
+      input.mediaUrl ?? null,
+      input.mediaType ?? null,
+      input.createdAt ? new Date(input.createdAt) : null,
+      input.updatedAt ? new Date(input.updatedAt) : null,
+    ]
+  )
+
+  return result.rows[0]
+}
+
+export async function findSessionById(sessionId: string) {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    program_id: string
+    title: string
+    description: string
+    duration_seconds: number | null
+    position: number
+    instructor_name: string | null
+    tags: string[]
+    media_url: string | null
+    media_type: 'audio' | 'video' | null
+    created_at: Date
+    updated_at: Date
+  }>(
+    `
+      select
+        id,
+        creator_id,
+        program_id,
+        title,
+        description,
+        duration_seconds,
+        position,
+        instructor_name,
+        tags,
+        media_url,
+        media_type,
+        created_at,
+        updated_at
+      from public.sessions
+      where id = $1
+      limit 1
+    `,
+    [sessionId]
+  )
+
+  return result.rows[0] ?? null
+}
+
+export async function listSessionsByProgram(programId: string) {
+  const adminPool = getAdminPool()
+  const result = await adminPool.query<{
+    id: string
+    creator_id: string
+    program_id: string
+    title: string
+    description: string
+    duration_seconds: number | null
+    position: number
+    instructor_name: string | null
+    tags: string[]
+    media_url: string | null
+    media_type: 'audio' | 'video' | null
+    created_at: Date
+    updated_at: Date
+  }>(
+    `
+      select
+        id,
+        creator_id,
+        program_id,
+        title,
+        description,
+        duration_seconds,
+        position,
+        instructor_name,
+        tags,
+        media_url,
+        media_type,
+        created_at,
+        updated_at
+      from public.sessions
+      where program_id = $1
+      order by position asc, created_at asc, id asc
+    `,
+    [programId]
+  )
+
+  return result.rows
+}
+
 export async function createAuditLog(input: {
   creatorId: string
   actorCreatorId?: string

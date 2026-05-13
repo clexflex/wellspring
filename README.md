@@ -2,7 +2,7 @@
 
 Wellspring is a multi-tenant content management platform for wellness creators.
 
-Phases 1 through 4 establish the backend foundation, custom creator authentication, audit log infrastructure, and tenant-safe program CRUD:
+Phases 1 through 5 establish the backend foundation, custom creator authentication, audit log infrastructure, tenant-safe program CRUD, and session CRUD with reorder:
 - Express + TypeScript API in `apps/api`
 - PostgreSQL schema managed through Supabase SQL migrations
 - split admin/runtime database roles
@@ -10,6 +10,7 @@ Phases 1 through 4 establish the backend foundation, custom creator authenticati
 - custom JWT auth for creators
 - tenant-scoped audit logging and retrieval
 - tenant-safe program CRUD
+- tenant-safe session CRUD and reorder
 - deterministic seed data
 
 ## Tech Stack
@@ -62,6 +63,12 @@ Phases 1 through 4 establish the backend foundation, custom creator authenticati
 - `GET /api/programs/:programId` returns one tenant-owned program.
 - `PATCH /api/programs/:programId` updates one tenant-owned program.
 - `DELETE /api/programs/:programId` deletes one tenant-owned program.
+- `GET /api/programs/:programId/sessions` returns tenant-scoped sessions for a program.
+- `POST /api/programs/:programId/sessions` creates a session in a tenant-owned program.
+- `GET /api/sessions/:sessionId` returns one tenant-owned session.
+- `PATCH /api/sessions/:sessionId` updates one tenant-owned session.
+- `DELETE /api/sessions/:sessionId` deletes one tenant-owned session.
+- `POST /api/programs/:programId/sessions/reorder` atomically reorders all sessions in a program.
 
 ## Auth Notes
 
@@ -105,6 +112,24 @@ Phases 1 through 4 establish the backend foundation, custom creator authenticati
   - `PROGRAM_DELETED`
 - Program deletion follows the existing schema behavior and cascade-deletes that program's sessions.
 
+## Session API Notes
+
+- All session endpoints require `Authorization: Bearer <token>`.
+- Session list ordering is `position asc, created_at asc, id asc`.
+- Session list pagination is intentionally omitted in this phase.
+- Session request bodies must not include `creator_id`; those requests are rejected with `VALIDATION_ERROR`.
+- Cross-tenant or missing program/session access returns `404`.
+- Session writes record audit rows:
+  - `SESSION_CREATED`
+  - `SESSION_UPDATED`
+  - `SESSION_DELETED`
+  - `SESSIONS_REORDERED`
+- Create behavior:
+  - omitted `position` appends to the end of the program
+  - provided `position` shifts existing sessions upward to keep positions contiguous
+- Delete behavior renumbers later sessions downward to keep positions contiguous.
+- Reorder requires the submitted `sessionIds` to exactly match the program's current sessions and applies contiguous 1-based positions atomically.
+
 ## Seeded Dev Credentials
 
 After `npm run db:seed`:
@@ -116,4 +141,4 @@ After `npm run db:seed`:
 - Supabase is used as hosted PostgreSQL only.
 - Supabase Storage is not used for application features.
 - The frontend must not query application tables directly.
-- Session CRUD, CSV import, uploads, and frontend auth screens are deferred to later phases.
+- CSV import, uploads, and frontend auth screens are deferred to later phases.

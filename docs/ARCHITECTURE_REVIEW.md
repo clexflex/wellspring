@@ -1,6 +1,6 @@
 # Architecture Review
 
-## Phase 1 Through 4 Decisions
+## Phase 1 Through 5 Decisions
 
 - The API talks to PostgreSQL through `pg` directly instead of an ORM.
 - Schema changes are migration-managed SQL under `supabase/migrations`.
@@ -9,6 +9,7 @@
 - Creator authentication is custom JWT auth implemented in the Express API.
 - Audit logs are read and written through the runtime role under tenant context; no admin connection participates in normal request flows.
 - Program CRUD also runs entirely through the runtime role under tenant context; controllers never choose the tenant in SQL.
+- Session CRUD and reorder also run entirely through the runtime role under tenant context, including all position maintenance.
 
 ## Why This Shape
 
@@ -18,6 +19,7 @@
 - `public.creators` is handled as a narrow auth identity table because signup and login must work before a tenant context exists.
 - The audit helper accepts an existing runtime `PoolClient` so future write flows can persist their audit row in the same transaction as the write they describe.
 - Program CRUD keeps SQL explicit and small instead of introducing a repository abstraction layer beyond the minimal module boundary.
+- Session CRUD extends that pattern and keeps ordering logic in explicit SQL rather than hiding it behind an ORM or trigger-heavy design.
 
 ## Auth Tradeoffs
 
@@ -49,6 +51,23 @@
 - Program list pagination is intentionally simple in Phase 4: `limit + offset`, ordered by `updated_at desc, id desc`.
 - Program deletion follows the existing schema contract and cascade-deletes sessions because `sessions_program_fk` is already `on delete cascade`.
 
+## Session CRUD and Reorder Design
+
+- Phase 5 adds session metadata columns because the original `sessions` table only had `title`, `description`, and `position` beyond the tenant/program keys.
+- Session routes validate parent program ownership through the same tenant-scoped runtime client used for the session operation.
+- Cross-tenant session and parent-program access still resolves to `404` because RLS hides rows before the application can distinguish ownership.
+- Session writes record audit rows in the same tenant transaction/client as the session mutation:
+  - `SESSION_CREATED`
+  - `SESSION_UPDATED`
+  - `SESSION_DELETED`
+  - `SESSIONS_REORDERED`
+- Position handling is contiguous by design:
+  - create with omitted `position` appends
+  - create with explicit `position` shifts later siblings upward
+  - delete renumbers later siblings downward
+- Reorder uses a two-phase temporary high-positive-offset strategy, not temporary negatives, because the current schema enforces `position > 0`.
+- The reorder request must exactly match the current program session id set before any positions are changed.
+
 ## Request Logging
 
 - Request logs now emit one canonical structured payload per request:
@@ -59,9 +78,8 @@
   - `status_code`
 - The previous duplication bug came from mixing mutable `req.url` with pino-http custom props; the logger now records `req.originalUrl` on response finish so mounted routes log the correct path once.
 
-## Honest Gaps After Phase 4
+## Honest Gaps After Phase 5
 
-- No session CRUD endpoints yet.
 - No CSV import, S3 upload flow, or frontend auth screens yet.
-- Audit coverage now includes auth writes and program writes; future session/import/upload writes still need to call the shared helper.
+- Audit coverage now includes auth, program, and session writes; future import/upload writes still need to call the shared helper.
 - Bearer tokens are the only auth transport; cookie/session handling is deferred.

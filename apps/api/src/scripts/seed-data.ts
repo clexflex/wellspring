@@ -12,7 +12,12 @@ export type SeedCreator = {
       id: string
       title: string
       description: string
+      durationSeconds: number
       position: number
+      instructorName: string
+      tags: string[]
+      mediaUrl: string
+      mediaType: 'audio' | 'video'
     }>
   }>
 }
@@ -36,7 +41,12 @@ export const seedCreators: SeedCreator[] = [
         id: sessionId(programIndex * 10 + sessionIndex + 1),
         title: `Ava Session ${programIndex + 1}.${sessionIndex + 1}`,
         description: `Seeded session ${sessionIndex + 1} for Ava Program ${programIndex + 1}`,
+        durationSeconds: 600 + sessionIndex * 60,
         position: sessionIndex + 1,
+        instructorName: 'Ava Bloom',
+        tags: sessionIndex % 2 === 0 ? ['sleep', 'breathwork'] : ['sleep', 'mindfulness'],
+        mediaUrl: `https://example.com/media/ava-program-${programIndex + 1}-session-${sessionIndex + 1}.mp4`,
+        mediaType: 'video',
       })),
     })),
   },
@@ -54,7 +64,12 @@ export const seedCreators: SeedCreator[] = [
         id: sessionId(100 + programIndex * 10 + sessionIndex + 1),
         title: `Milo Session ${programIndex + 1}.${sessionIndex + 1}`,
         description: `Seeded session ${sessionIndex + 1} for Milo Program ${programIndex + 1}`,
+        durationSeconds: 540 + sessionIndex * 45,
         position: sessionIndex + 1,
+        instructorName: 'Milo Tide',
+        tags: sessionIndex % 2 === 0 ? ['focus', 'audio'] : ['focus', 'movement'],
+        mediaUrl: `https://example.com/media/milo-program-${programIndex + 1}-session-${sessionIndex + 1}.mp3`,
+        mediaType: 'audio',
       })),
     })),
   },

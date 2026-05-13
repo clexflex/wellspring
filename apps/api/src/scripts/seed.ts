@@ -42,10 +42,34 @@ async function main() {
         for (const session of program.sessions) {
           await client.query(
             `
-              insert into public.sessions (id, creator_id, program_id, title, description, position)
-              values ($1, $2, $3, $4, $5, $6)
+              insert into public.sessions (
+                id,
+                creator_id,
+                program_id,
+                title,
+                description,
+                duration_seconds,
+                position,
+                instructor_name,
+                tags,
+                media_url,
+                media_type
+              )
+              values ($1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11)
             `,
-            [session.id, creator.id, program.id, session.title, session.description, session.position]
+            [
+              session.id,
+              creator.id,
+              program.id,
+              session.title,
+              session.description,
+              session.durationSeconds,
+              session.position,
+              session.instructorName,
+              session.tags,
+              session.mediaUrl,
+              session.mediaType,
+            ]
           )
         }
       }
