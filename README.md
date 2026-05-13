@@ -1,6 +1,6 @@
 # Wellspring
 
-Loom walkthrough URL: `ADD-LOOM-URL-HERE`
+Loom walkthrough URL: `https://www.loom.com/share/79c038e83a6a45e89dc49d84032d09ef`
 
 Wellspring is a multi-tenant content management platform for wellness creators. Creators use the admin panel to manage programs, ordered audio or video sessions, CSV imports, session media uploads, and tenant-scoped audit history. The implementation uses a Next.js admin panel over an Express + TypeScript API, with Supabase used only as hosted PostgreSQL.
 
