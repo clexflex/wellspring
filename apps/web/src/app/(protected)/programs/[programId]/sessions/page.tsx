@@ -21,28 +21,48 @@ export default function ProgramSessionsPage() {
   const [orderSaving, setOrderSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+  const fetchProgramSessions = useCallback(async () => {
+    const [programResponse, sessionsResponse] = await Promise.all([
+      programsApi.get(params.programId),
+      sessionsApi.list(params.programId),
+    ])
 
-    try {
-      const [programResponse, sessionsResponse] = await Promise.all([
-        programsApi.get(params.programId),
-        sessionsApi.list(params.programId),
-      ])
-
-      setProgram(programResponse.program)
-      setSessions(sessionsResponse.items)
-    } catch (loadError) {
-      setError(getErrorMessage(loadError, 'Unable to load sessions'))
-    } finally {
-      setIsLoading(false)
+    return {
+      program: programResponse.program,
+      sessions: sessionsResponse.items,
     }
   }, [params.programId])
 
   useEffect(() => {
-    void loadData()
-  }, [loadData])
+    let active = true
+
+    async function loadInitialData() {
+      try {
+        const response = await fetchProgramSessions()
+
+        if (!active) {
+          return
+        }
+
+        setProgram(response.program)
+        setSessions(response.sessions)
+      } catch (loadError) {
+        if (active) {
+          setError(getErrorMessage(loadError, 'Unable to load sessions'))
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadInitialData()
+
+    return () => {
+      active = false
+    }
+  }, [fetchProgramSessions])
 
   async function handleDelete(session: Session) {
     if (!window.confirm(`Delete session "${session.title}"?`)) {

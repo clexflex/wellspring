@@ -18,7 +18,7 @@ export function AppNav() {
   const { creator, logout } = useAuth()
 
   return (
-    <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-8">
           <Link href="/programs" className="text-lg font-semibold tracking-tight">

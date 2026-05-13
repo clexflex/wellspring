@@ -20,6 +20,17 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+async function fetchCurrentCreator(): Promise<Creator | null> {
+  const token = getToken()
+
+  if (!token) {
+    return null
+  }
+
+  const response = await authApi.me()
+  return response.creator
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [creator, setCreator] = useState<Creator | null>(null)
@@ -31,20 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const refresh = useCallback(async () => {
-    const token = getToken()
-
-    if (!token) {
-      setCreator(null)
-      setStatus('anonymous')
-      return
-    }
-
     setStatus('loading')
 
     try {
-      const response = await authApi.me()
-      setCreator(response.creator)
-      setStatus('authenticated')
+      const nextCreator = await fetchCurrentCreator()
+
+      if (nextCreator) {
+        setCreator(nextCreator)
+        setStatus('authenticated')
+      } else {
+        setCreator(null)
+        setStatus('anonymous')
+      }
     } catch {
       logout()
     }
@@ -57,8 +66,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    let active = true
+
+    async function bootstrapAuth() {
+      try {
+        const nextCreator = await fetchCurrentCreator()
+
+        if (!active) {
+          return
+        }
+
+        if (nextCreator) {
+          setCreator(nextCreator)
+          setStatus('authenticated')
+        } else {
+          setCreator(null)
+          setStatus('anonymous')
+        }
+      } catch {
+        if (active) {
+          logout()
+        }
+      }
+    }
+
+    void bootstrapAuth()
+
+    return () => {
+      active = false
+    }
+  }, [logout])
 
   useEffect(() => subscribeToAuthInvalidated(logout), [logout])
 

@@ -87,7 +87,7 @@ export function SessionImportForm({ programId }: { programId: string }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="csv">CSV contents</Label>
-              <Textarea id="csv" className="min-h-[320px] font-mono text-xs" value={csv} onChange={(event) => setCsv(event.target.value)} />
+              <Textarea id="csv" className="min-h-80 font-mono text-xs" value={csv} onChange={(event) => setCsv(event.target.value)} />
             </div>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Importing...' : 'Import sessions'}

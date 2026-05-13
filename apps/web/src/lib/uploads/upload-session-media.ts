@@ -16,16 +16,35 @@ export async function uploadSessionMediaFile(file: File): Promise<{ mediaUrl: st
     contentLength: file.size,
   })
 
-  const uploadResponse = await fetch(response.upload.uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': file.type,
-    },
-    body: file,
-  })
+  let uploadResponse: Response
+
+  try {
+    uploadResponse = await fetch(response.upload.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+      },
+      body: file,
+    })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        'Browser upload to S3 was blocked before the file reached the bucket. Check the S3 bucket CORS configuration for your frontend origin and allow PUT requests with the Content-Type header.'
+      )
+    }
+
+    throw error
+  }
 
   if (!uploadResponse.ok) {
-    throw new Error('Direct upload to S3 failed')
+    const errorBody = await uploadResponse.text().catch(() => '')
+    const statusLabel = `${uploadResponse.status} ${uploadResponse.statusText}`.trim()
+
+    throw new Error(
+      errorBody
+        ? `Direct upload to S3 failed (${statusLabel}). ${errorBody}`
+        : `Direct upload to S3 failed (${statusLabel}).`
+    )
   }
 
   return {
