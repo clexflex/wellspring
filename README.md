@@ -200,6 +200,10 @@ Phase 8 adds the functional Next.js admin panel in `apps/web`:
   - uniqueness is enforced by `unique (creator_id, client_import_id)`
   - reusing the same `clientImportId` for the same creator replays the prior persisted result without re-inserting sessions
   - the same `clientImportId` may be used by different creators
+- Admin panel note:
+  - the import screen labels `clientImportId` as an `Idempotency key`
+  - reuse the same key to verify replay behavior
+  - generate a new key only when you intentionally want a new import attempt
 
 Example request:
 

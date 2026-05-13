@@ -95,10 +95,22 @@ export default function ProgramSessionsPage() {
         description="Manage ordered sessions inside this tenant-scoped program."
         actions={
           <>
-            <Link href={`/programs/${params.programId}/sessions/import`} className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent">
+            <Link
+              href="/programs"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent"
+            >
+              Back to programs
+            </Link>
+            <Link
+              href={`/programs/${params.programId}/sessions/import`}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent"
+            >
               CSV import
             </Link>
-            <Link href={`/programs/${params.programId}/sessions/new`} className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Link
+              href={`/programs/${params.programId}/sessions/new`}
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
               New session
             </Link>
           </>

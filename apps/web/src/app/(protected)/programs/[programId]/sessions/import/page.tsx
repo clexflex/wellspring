@@ -54,9 +54,20 @@ export default function SessionImportPage() {
         title={program ? `Import sessions into ${program.title}` : 'Import sessions'}
         description="Upload CSV text, preserve row feedback, and reuse client import IDs safely."
         actions={
-          <Link href={`/programs/${params.programId}/sessions`} className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent">
-            Back to sessions
-          </Link>
+          <>
+            <Link
+              href="/programs"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent"
+            >
+              Back to programs
+            </Link>
+            <Link
+              href={`/programs/${params.programId}/sessions`}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent"
+            >
+              Back to sessions
+            </Link>
+          </>
         }
       />
       {error ? <ErrorAlert message={error} /> : null}

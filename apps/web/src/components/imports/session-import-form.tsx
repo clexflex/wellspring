@@ -14,8 +14,12 @@ import type { BulkImportResult } from '@/lib/api/types'
 import { SESSION_IMPORT_CSV_EXAMPLE } from '@/lib/imports/csv-example'
 import { getErrorMessage } from '@/lib/utils/error-message'
 
+function createIdempotencyKey() {
+  return crypto.randomUUID()
+}
+
 export function SessionImportForm({ programId }: { programId: string }) {
-  const [clientImportId, setClientImportId] = useState(() => crypto.randomUUID())
+  const [clientImportId, setClientImportId] = useState(createIdempotencyKey)
   const [csv, setCsv] = useState(SESSION_IMPORT_CSV_EXAMPLE)
   const [result, setResult] = useState<BulkImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,8 +61,25 @@ export function SessionImportForm({ programId }: { programId: string }) {
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error ? <ErrorAlert message={error} /> : null}
             <div className="space-y-2">
-              <Label htmlFor="clientImportId">Client import ID</Label>
-              <Input id="clientImportId" value={clientImportId} onChange={(event) => setClientImportId(event.target.value)} />
+              <Label htmlFor="clientImportId">Idempotency key</Label>
+              <div className="flex flex-col gap-3 md:flex-row">
+                <Input
+                  id="clientImportId"
+                  value={clientImportId}
+                  onChange={(event) => setClientImportId(event.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setClientImportId(createIdempotencyKey())}
+                >
+                  Generate new key
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Reusing the same key will replay the previous import instead of creating duplicate
+                sessions. Generate a new key only when you want a new import.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="csvFile">CSV file</Label>
@@ -89,10 +110,17 @@ export function SessionImportForm({ programId }: { programId: string }) {
           <CardHeader>
             <CardTitle>Import result</CardTitle>
             <CardDescription>
-              Status: {result.import.status} | Inserted: {result.import.insertedCount} | Failed: {result.import.failedCount} | Replayed: {String(result.import.replayed)}
+              Status: {result.import.status} | Inserted: {result.import.insertedCount} | Failed:{' '}
+              {result.import.failedCount}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {result.import.replayed ? (
+              <div className="rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+                This import was replayed from the existing idempotency key. No duplicate sessions
+                were created.
+              </div>
+            ) : null}
             <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
               <p>Created at: {new Date(result.import.createdAt).toLocaleString()}</p>
               <p>Completed at: {new Date(result.import.completedAt).toLocaleString()}</p>
